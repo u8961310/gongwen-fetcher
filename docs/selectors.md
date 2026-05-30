@@ -1,7 +1,7 @@
 # 國尊 Cyberhood 線上簽核系統 — 探勘紀錄
 
 - 探勘日期：2026-05-30
-- 探勘站台：`https://ljjhps.cyberhood.net.tw/tw/`（鹿江國際中小學）
+- 探勘站台：`https://*.cyberhood.net.tw/tw/`
 - 系統：Cyberhood 電子公文／線上簽核（workflow 模組）
 - 跨校：各校網址不同，但同一套 Cyberhood，畫面與函式一致 → selector / 函式可共用，
   僅 `GW_BASE_URL` 不同。**若某校為客製/舊版需重新探勘該校。**

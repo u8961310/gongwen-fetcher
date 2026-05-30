@@ -5,6 +5,10 @@ import { findFrame, waitForFrame } from './frames.js';
 // 點左側資料夾樹的「收件夾」節點，等清單載入。
 export async function openInbox(page) {
   const tree = await waitForFrame(page, S.tree.frameUrlIncludes, config.timeout);
+  // 樹節點是登入後由 RPC 建立的，等它出現再點
+  await tree.waitForFunction((id) => !!document.getElementById(id), S.tree.inboxNodeId, {
+    timeout: config.timeout,
+  });
   await tree.evaluate((id) => {
     const span = document.getElementById(id);
     if (!span) throw new Error('找不到收件夾節點');
