@@ -32,7 +32,6 @@ Name: "{userprograms}\{#MyAppName}\{#MyAppName}"; Filename: "{app}\執行.bat"; 
 Name: "{userprograms}\{#MyAppName}\移除 {#MyAppName}"; Filename: "{uninstallexe}"
 
 [Run]
-Filename: "{app}\runtime\node\node.exe"; Parameters: "src\writeEnvFromFile.js .setup-input.txt"; WorkingDir: "{app}"; Flags: runhidden
 Filename: "{cmd}"; Parameters: "/c schtasks /Create /TN ""公文附件下載器"" /TR ""\""{app}\run.bat\"""" /SC DAILY /ST 08:00 /F"; Flags: runhidden; Tasks: dailytask
 Filename: "{app}\執行.bat"; Description: "立即執行一次"; Flags: postinstall nowait skipifsilent; Tasks: runnow
 
@@ -57,7 +56,12 @@ begin
     '存放資料夾', '附件要下載到哪個資料夾',
     '可按「瀏覽」選擇：', False, '');
   DirPage.Add('');
-  DirPage.Values[0] := 'D:\公文附件';
+
+  { 支援命令列預填（大量部署 / 自動測試）：/URL= /ACC= /PWD= /OUT= }
+  InputPage.Values[0] := ExpandConstant('{param:URL|}');
+  InputPage.Values[1] := ExpandConstant('{param:ACC|}');
+  InputPage.Values[2] := ExpandConstant('{param:PWD|}');
+  DirPage.Values[0] := ExpandConstant('{param:OUT|D:\公文附件}');
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
@@ -68,7 +72,8 @@ begin
     if (Trim(InputPage.Values[0]) = '') or (Trim(InputPage.Values[1]) = '')
        or (Trim(InputPage.Values[2]) = '') then
     begin
-      MsgBox('網址、帳號、密碼都必須填寫。', mbError, MB_OK);
+      if not WizardSilent then
+        MsgBox('網址、帳號、密碼都必須填寫。', mbError, MB_OK);
       Result := False;
     end;
   end;
@@ -77,6 +82,7 @@ end;
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   Lines: TArrayOfString;
+  ResultCode: Integer;
 begin
   if CurStep = ssPostInstall then
   begin
@@ -86,5 +92,9 @@ begin
     Lines[2] := InputPage.Values[2];
     Lines[3] := DirPage.Values[0];
     SaveStringsToUTF8File(ExpandConstant('{app}\.setup-input.txt'), Lines, False);
+    { 緊接著用可攜 node 把輸入轉成 UTF-8 .env（時序確定，不再依賴 [Run] 順序）}
+    Exec(ExpandConstant('{app}\runtime\node\node.exe'),
+         'src\writeEnvFromFile.js .setup-input.txt',
+         ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode);
   end;
 end;
