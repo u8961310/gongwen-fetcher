@@ -1,87 +1,14 @@
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
-import { chromium } from 'playwright';
-import { config } from './config.js';
-import { login } from './login.js';
-import { openInbox, scrapeInbox } from './listScraper.js';
-import { openDoc, collectAttachments, downloadAttachments } from './docHandler.js';
-import { buildFolderName, ensureFolder } from './fileManager.js';
-import { loadProcessed, saveProcessed, filterNew } from './stateStore.js';
+import { loadConfigFromEnv } from './config.js';
+import { runDownload } from './runDownload.js';
 
 const dryRun = process.argv.includes('--dry-run');
 
-async function main() {
-  const processed = loadProcessed(config.processedFile);
-  const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
-
-  try {
-    await login(page);
-    console.log('✅ 登入成功');
-
-    await openInbox(page);
-    const items = await scrapeInbox(page);
-    const newItems = filterNew(items, processed);
-    console.log(`收件夾 ${items.length} 件，其中新件 ${newItems.length} 件`);
-
-    let done = 0;
-    let failed = 0;
-    for (const item of newItems) {
-      const folderName = buildFolderName(item.docNumber, item.subject);
-
-      if (dryRun) {
-        console.log(`[dry-run] ${folderName}`);
-        continue;
-      }
-
-      // 資料夾已存在 → 視為已處理，免開公文
-      if (existsSync(join(config.outputDir, folderName))) {
-        console.log(`⏭️ ${folderName} 資料夾已存在，視為已處理`);
-        processed.add(item.docNumber);
-        continue;
-      }
-
-      try {
-        await openDoc(page, item);
-        const atts = await collectAttachments(page);
-        if (atts.length === 0) {
-          console.log(`ℹ️ ${folderName}：無附件（不建資料夾）`);
-        } else {
-          const { dir } = ensureFolder(config.outputDir, folderName);
-          const saved = await downloadAttachments(page, dir, atts);
-          console.log(`✅ ${folderName}：下載 ${saved.length} 個附件`);
-          done += 1;
-        }
-        processed.add(item.docNumber);
-        await openInbox(page); // 回清單供下一件
-      } catch (err) {
-        console.error(`⚠️ ${folderName} 失敗，跳過（下次重試）：${err.message}`);
-        failed += 1;
-        try {
-          await openInbox(page);
-        } catch {
-          /* 回清單失敗就讓外層處理 */
-        }
-      }
-    }
-
-    if (!dryRun) {
-      saveProcessed(config.processedFile, processed);
-      console.log('\n========================================');
-      console.log(
-        `完成：本次新下載 ${done} 件公文的附件` +
-          (failed ? `，${failed} 件失敗（下次自動重試）` : '')
-      );
-      console.log(`存放位置：${config.outputDir}`);
-      console.log('========================================');
-    }
-  } catch (err) {
-    console.error(`\n❌ 執行中止：${err.message}`);
-    console.error('常見原因：帳號密碼或網址錯誤、公文系統暫時無法連線。');
-    process.exitCode = 1;
-  } finally {
-    await browser.close();
-  }
+function consoleProgress(e) {
+  if (e.type === 'login') console.log('✅ 登入成功');
+  else if (e.type === 'list') console.log(`收件夾 ${e.total} 件，其中新件 ${e.fresh} 件`);
+  else if (e.type === 'item-done') console.log(`  ${e.docNumber}：${e.message}`);
+  else if (e.type === 'done') console.log(`\n完成：新下載 ${e.downloaded} 件，失敗 ${e.failed}。存放：${e.outputDir}`);
+  else if (e.type === 'error') console.error(`❌ ${e.message}`);
 }
 
-main();
+runDownload({ config: loadConfigFromEnv(), onProgress: consoleProgress, dryRun });
