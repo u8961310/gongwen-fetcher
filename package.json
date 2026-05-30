@@ -3,13 +3,20 @@
   "version": "0.1.0",
   "type": "module",
   "private": true,
+  "main": "electron/main.js",
   "scripts": {
     "start": "node src/index.js",
     "dry-run": "node src/index.js --dry-run",
-    "test": "node --test"
+    "test": "node --test",
+    "app": "electron .",
+    "dist": "electron-builder"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
     "playwright": "^1.48.0"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8"
   }
 }
