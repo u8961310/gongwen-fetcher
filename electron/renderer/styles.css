@@ -1,17 +1,98 @@
-* { box-sizing: border-box; font-family: "Microsoft JhengHei", "PingFang TC", sans-serif; }
-body { margin: 0; padding: 12px; color: #222; }
-.hidden { display: none; }
-#setup label { display: block; margin: 10px 0; }
-#setup input { width: 100%; padding: 6px; margin-top: 4px; }
-.toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
-.toolbar button { padding: 6px 10px; cursor: pointer; }
-.summary { padding: 6px 0; font-weight: bold; }
+:root {
+  --bg: #eef1f6;
+  --card: #ffffff;
+  --ink: #1f2733;
+  --muted: #6b7585;
+  --line: #e3e7ee;
+  --accent: #3b6df6;
+  --accent-ink: #ffffff;
+  --shadow: 0 1px 3px rgba(20, 30, 60, .08), 0 6px 18px rgba(20, 30, 60, .06);
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  color: var(--ink);
+  background: var(--bg);
+  font-family: "Microsoft JhengHei", "PingFang TC", "Segoe UI", sans-serif;
+  font-size: 14px;
+}
+.hidden { display: none !important; }
+
+/* 標題列 */
+.appbar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 20px;
+  background: linear-gradient(135deg, #3b6df6, #5b8cff);
+  color: #fff;
+  box-shadow: var(--shadow);
+}
+.appbar .logo { font-size: 22px; }
+.appbar h1 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: .5px; }
+
+.container { padding: 18px; max-width: 980px; margin: 0 auto; }
+
+/* 卡片 */
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+/* 設定畫面 */
+#setup h2 { margin: 0 0 6px; }
+.hint { color: var(--muted); margin: 0 0 16px; }
+#setup label { display: block; margin: 12px 0; font-weight: 600; color: #36404f; }
+#setup input {
+  width: 100%; margin-top: 6px; padding: 9px 11px;
+  border: 1px solid var(--line); border-radius: 8px; font-size: 14px;
+  background: #fbfcfe;
+}
+#setup input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,109,246,.15); }
+
+/* 按鈕 */
+.btn {
+  padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 14px;
+  border: 1px solid var(--line); background: #fff; color: var(--ink);
+  transition: background .15s, box-shadow .15s, transform .05s;
+}
+.btn:hover { background: #f3f6fc; }
+.btn:active { transform: translateY(1px); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.primary:hover { background: #2f5fe0; }
+.btn:disabled { opacity: .6; cursor: default; }
+#s-save { margin-top: 8px; padding: 10px 20px; }
+
+/* 工具列 */
+.toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 12px 14px; }
+.switch { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; color: #36404f; font-weight: 600; }
+.switch input { width: 18px; height: 18px; accent-color: var(--accent); }
+
+/* 摘要列 */
+.summary { font-weight: 600; color: #36404f; margin: 4px 2px 14px; }
+
+/* 表格 */
+.table-card { padding: 0; overflow: hidden; }
+.table-card h3 { margin: 0; padding: 14px 16px; border-bottom: 1px solid var(--line); }
 table { width: 100%; border-collapse: collapse; }
-th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; font-size: 14px; }
-th { background: #f4f4f4; }
-.st-downloaded { color: #137333; }
-.st-failed { color: #c5221f; }
-.st-skipped, .st-noattach { color: #888; }
-.st-downloading { color: #1a73e8; }
-button { font-size: 14px; }
-#s-save { padding: 8px 16px; margin-top: 8px; cursor: pointer; }
+th, td { padding: 11px 14px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { background: #f7f9fc; color: var(--muted); font-weight: 600; font-size: 13px; position: sticky; top: 0; }
+tbody tr:nth-child(even) { background: #fafbfd; }
+tbody tr:hover { background: #eef3ff; }
+tbody tr:last-child td { border-bottom: none; }
+td.mono { font-family: "Consolas", "Menlo", monospace; color: #36404f; white-space: nowrap; }
+
+/* 狀態標籤 */
+.badge {
+  display: inline-block; padding: 3px 10px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; white-space: nowrap;
+}
+.b-wait { background: #eef1f6; color: #6b7585; }
+.b-run, .b-running { background: #e7efff; color: #2f5fe0; }
+.b-ok { background: #e6f5ec; color: #137a3e; }
+.b-fail { background: #fdecea; color: #c5221f; }
+.b-muted { background: #eef1f6; color: #6b7585; }

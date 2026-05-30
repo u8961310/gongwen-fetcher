@@ -12,7 +12,7 @@ const REAL = {
   downloadAttachments, buildFolderName, ensureFolder, loadProcessed, saveProcessed, filterNew, existsSync,
 };
 
-export async function runDownload({ config, onProgress, dryRun = false }, deps = REAL) {
+export async function runDownload({ config, onProgress, dryRun = false, force = false }, deps = REAL) {
   const emit = (e) => { if (onProgress) onProgress(e); };
   const processed = deps.loadProcessed(config.processedFile);
   const browser = await deps.chromium.launch({ headless: true });
@@ -25,7 +25,8 @@ export async function runDownload({ config, onProgress, dryRun = false }, deps =
 
     await deps.openInbox(page, config);
     const items = await deps.scrapeInbox(page, config);
-    const newItems = deps.filterNew(items, processed);
+    // force（重新下載）：整個收件夾重抓，忽略 processed.json；否則增量只抓新件
+    const newItems = force ? items : deps.filterNew(items, processed);
     emit({ type: 'list', total: items.length, fresh: newItems.length, items: newItems });
 
     for (const item of newItems) {
@@ -34,7 +35,7 @@ export async function runDownload({ config, onProgress, dryRun = false }, deps =
 
       if (dryRun) { emit({ type: 'item-done', docNumber: item.docNumber, status: 'dry', message: `會建 ${folderName}` }); continue; }
 
-      if (deps.existsSync(join(config.outputDir, folderName))) {
+      if (!force && deps.existsSync(join(config.outputDir, folderName))) {
         processed.add(item.docNumber);
         emit({ type: 'item-done', docNumber: item.docNumber, status: 'skipped', message: '資料夾已存在' });
         continue;

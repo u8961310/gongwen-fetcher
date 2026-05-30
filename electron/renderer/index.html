@@ -7,33 +7,46 @@
   <title>公文附件下載器</title>
 </head>
 <body>
-  <div id="setup" class="hidden">
-    <h2>首次設定</h2>
-    <label>公文系統登入網址<input id="s-url" placeholder="https://校名.cyberhood.net.tw/tw/" /></label>
-    <label>帳號<input id="s-acc" /></label>
-    <label>密碼<input id="s-pwd" type="password" /></label>
-    <label>存放資料夾<input id="s-out" placeholder="D:\公文附件" /></label>
-    <button id="s-save">儲存並開始</button>
-  </div>
+  <header class="appbar">
+    <span class="logo">📂</span>
+    <h1>公文附件下載器</h1>
+  </header>
 
-  <div id="main" class="hidden">
-    <div class="toolbar">
-      <button id="t-run">🔄 重新下載</button>
-      <button id="t-folder">📂 開啟資料夾</button>
-      <button id="t-settings">⚙️ 設定</button>
-      <label class="sched">⏰ 每日自動 <input type="checkbox" id="t-sched" /></label>
-      <button id="t-history">🕘 歷史</button>
-    </div>
-    <div id="summary" class="summary">準備中…</div>
-    <table id="grid">
-      <thead><tr><th>簽呈編號</th><th>主旨</th><th>狀態</th></tr></thead>
-      <tbody></tbody>
-    </table>
-    <div id="history" class="hidden">
-      <h3>下載歷史</h3>
-      <table id="hgrid"><thead><tr><th>時間</th><th>編號</th><th>檔數</th></tr></thead><tbody></tbody></table>
-    </div>
-  </div>
+  <main class="container">
+    <section id="setup" class="card hidden">
+      <h2>首次設定</h2>
+      <p class="hint">這些資料只會存在你這台電腦，用來自動登入下載附件。</p>
+      <label>公文系統登入網址<input id="s-url" placeholder="https://校名.cyberhood.net.tw/tw/" /></label>
+      <label>帳號<input id="s-acc" /></label>
+      <label>密碼<input id="s-pwd" type="password" /></label>
+      <label>存放資料夾<input id="s-out" placeholder="D:\公文附件" /></label>
+      <button id="s-save" class="btn primary">儲存並開始</button>
+    </section>
+
+    <section id="main" class="hidden">
+      <div class="toolbar card">
+        <button id="t-run" class="btn primary">🔄 重新下載</button>
+        <button id="t-folder" class="btn">📂 開啟資料夾</button>
+        <button id="t-settings" class="btn">⚙️ 設定</button>
+        <button id="t-history" class="btn">🕘 歷史</button>
+        <label class="switch">⏰ 每日自動<input type="checkbox" id="t-sched" /></label>
+      </div>
+
+      <div id="summary" class="summary">準備中…</div>
+
+      <div class="card table-card">
+        <table id="grid">
+          <thead><tr><th>簽呈編號</th><th>主旨</th><th>狀態</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div id="history" class="card table-card hidden">
+        <h3>下載歷史</h3>
+        <table id="hgrid"><thead><tr><th>時間</th><th>編號</th><th>檔數</th></tr></thead><tbody></tbody></table>
+      </div>
+    </section>
+  </main>
   <script src="renderer.js"></script>
 </body>
 </html>

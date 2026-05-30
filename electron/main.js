@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { execFile } from 'node:child_process';
+import { appendFileSync } from 'node:fs';
 import { runDownload } from '../src/runDownload.js';
 import { hasSettings, saveSettings, loadConfig, appendHistory, loadHistory } from '../src/settings.js';
 
@@ -21,15 +22,29 @@ function runTask(args) {
   });
 }
 
-async function startDownload(win) {
+// 把進度事件寫一行到 run.log（排程 --auto 失敗時可據此診斷）
+function logEvent(e) {
+  try {
+    const line = `${new Date().toISOString()} [${e.type}] ${e.docNumber || ''} ${e.message || e.outputDir || ''}\n`;
+    appendFileSync(join(USERDATA, 'run.log'), line);
+  } catch { /* log 失敗不影響主流程 */ }
+}
+
+function recordProgress(e) {
+  logEvent(e);
+  if (e.type === 'item-done' && e.status === 'downloaded') {
+    appendHistory(USERDATA, { time: new Date().toISOString(), docNumber: e.docNumber, count: e.count });
+  }
+}
+
+async function startDownload(win, force = false) {
   const config = loadConfig(USERDATA);
   await runDownload({
     config,
+    force,
     onProgress: (e) => {
       if (win && !win.isDestroyed()) win.webContents.send('progress', e);
-      if (e.type === 'item-done' && e.status === 'downloaded') {
-        appendHistory(USERDATA, { time: new Date().toISOString(), docNumber: e.docNumber, count: e.count });
-      }
+      recordProgress(e);
     },
   });
 }
@@ -48,7 +63,7 @@ function createWindow() {
     catch { return { baseUrl: '', account: '', password: '', outputDir: 'D:\\公文附件' }; }
   });
   ipcMain.handle('save-settings', (_e, v) => { saveSettings(USERDATA, v); return true; });
-  ipcMain.handle('start-download', () => startDownload(win));
+  ipcMain.handle('start-download', (_e, opts) => startDownload(win, Boolean(opts && opts.force)));
   ipcMain.handle('open-folder', () => { try { return shell.openPath(loadConfig(USERDATA).outputDir); } catch { return 'no-config'; } });
   ipcMain.handle('get-history', () => loadHistory(USERDATA));
   ipcMain.handle('get-schedule', () => runTask(['/Query', '/TN', TASK_NAME]));
@@ -61,9 +76,7 @@ function createWindow() {
 async function runAutoAndQuit() {
   try {
     if (hasSettings(USERDATA)) {
-      await runDownload({ config: loadConfig(USERDATA), onProgress: (e) => {
-        if (e.type === 'item-done' && e.status === 'downloaded') appendHistory(USERDATA, { time: new Date().toISOString(), docNumber: e.docNumber, count: e.count });
-      } });
+      await runDownload({ config: loadConfig(USERDATA), onProgress: recordProgress });
     }
   } finally { app.quit(); }
 }

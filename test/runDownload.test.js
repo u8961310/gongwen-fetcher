@@ -42,3 +42,17 @@ test('無附件不建資料夾', async () => {
   await runDownload({ config: { outputDir: 'O', processedFile: 'p' }, onProgress: () => {} }, deps);
   assert.equal(created.length, 0);
 });
+
+test('force 忽略 processed 與既有資料夾，全部重下載', async () => {
+  const downloaded = [];
+  const { deps } = makeDeps({
+    loadProcessed: () => new Set(['A1', 'B2']), // 兩件都「已處理」
+    existsSync: () => true, // 資料夾都「已存在」
+    downloadAttachments: async (p, dir) => { downloaded.push(dir); return ['x']; },
+  });
+  await runDownload(
+    { config: { outputDir: 'O', processedFile: 'p' }, onProgress: () => {}, force: true },
+    deps
+  );
+  assert.equal(downloaded.length, 2); // force 仍重抓兩件
+});

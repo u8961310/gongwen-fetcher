@@ -4,7 +4,7 @@ contextBridge.exposeInMainWorld('api', {
   getState: () => ipcRenderer.invoke('get-state'),
   getSettings: () => ipcRenderer.invoke('get-settings'),
   saveSettings: (v) => ipcRenderer.invoke('save-settings', v),
-  startDownload: () => ipcRenderer.invoke('start-download'),
+  startDownload: (opts) => ipcRenderer.invoke('start-download', opts),
   openFolder: () => ipcRenderer.invoke('open-folder'),
   getHistory: () => ipcRenderer.invoke('get-history'),
   getSchedule: () => ipcRenderer.invoke('get-schedule'),
