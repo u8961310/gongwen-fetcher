@@ -68,7 +68,7 @@ function createWindow() {
   ipcMain.handle('get-history', () => loadHistory(USERDATA));
   ipcMain.handle('get-schedule', () => runTask(['/Query', '/TN', TASK_NAME]));
   ipcMain.handle('set-schedule', async (_e, on) => {
-    if (on) return runTask(['/Create', '/TN', TASK_NAME, '/TR', `"${process.execPath}" --auto`, '/SC', 'DAILY', '/ST', '08:00', '/F']);
+    if (on) return runTask(['/Create', '/TN', TASK_NAME, '/TR', `"${process.execPath}" --auto`, '/SC', 'HOURLY', '/MO', '1', '/F']);
     return runTask(['/Delete', '/TN', TASK_NAME, '/F']);
   });
 }
