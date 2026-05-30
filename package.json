@@ -18,5 +18,23 @@
   "devDependencies": {
     "electron": "^33.4.11",
     "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "tw.gongwen.fetcher",
+    "productName": "公文附件下載器",
+    "directories": { "output": "dist" },
+    "files": ["electron/**/*", "src/**/*", "package.json"],
+    "asarUnpack": ["**/node_modules/playwright/**", "**/node_modules/playwright-core/**"],
+    "extraResources": [{ "from": "ms-playwright", "to": "ms-playwright" }],
+    "win": { "target": "nsis" },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "license": "授權說明.txt",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "公文附件下載器"
+    }
   }
 }

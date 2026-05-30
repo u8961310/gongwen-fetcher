@@ -7,3 +7,5 @@ downloads/
 runtime/
 dist-build/
 installer/ChineseTraditional.isl
+ms-playwright/
+dist/
