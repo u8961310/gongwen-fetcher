@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
+  <link rel="stylesheet" href="styles.css" />
+  <title>公文附件下載器</title>
+</head>
+<body>
+  <div id="setup" class="hidden">
+    <h2>首次設定</h2>
+    <label>公文系統登入網址<input id="s-url" placeholder="https://校名.cyberhood.net.tw/tw/" /></label>
+    <label>帳號<input id="s-acc" /></label>
+    <label>密碼<input id="s-pwd" type="password" /></label>
+    <label>存放資料夾<input id="s-out" placeholder="D:\公文附件" /></label>
+    <button id="s-save">儲存並開始</button>
+  </div>
+
+  <div id="main" class="hidden">
+    <div class="toolbar">
+      <button id="t-run">🔄 重新下載</button>
+      <button id="t-folder">📂 開啟資料夾</button>
+      <button id="t-settings">⚙️ 設定</button>
+      <label class="sched">⏰ 每日自動 <input type="checkbox" id="t-sched" /></label>
+      <button id="t-history">🕘 歷史</button>
+    </div>
+    <div id="summary" class="summary">準備中…</div>
+    <table id="grid">
+      <thead><tr><th>簽呈編號</th><th>主旨</th><th>狀態</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div id="history" class="hidden">
+      <h3>下載歷史</h3>
+      <table id="hgrid"><thead><tr><th>時間</th><th>編號</th><th>檔數</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+  <script src="renderer.js"></script>
+</body>
+</html>

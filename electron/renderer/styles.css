@@ -1,0 +1,17 @@
+* { box-sizing: border-box; font-family: "Microsoft JhengHei", "PingFang TC", sans-serif; }
+body { margin: 0; padding: 12px; color: #222; }
+.hidden { display: none; }
+#setup label { display: block; margin: 10px 0; }
+#setup input { width: 100%; padding: 6px; margin-top: 4px; }
+.toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+.toolbar button { padding: 6px 10px; cursor: pointer; }
+.summary { padding: 6px 0; font-weight: bold; }
+table { width: 100%; border-collapse: collapse; }
+th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; font-size: 14px; }
+th { background: #f4f4f4; }
+.st-downloaded { color: #137333; }
+.st-failed { color: #c5221f; }
+.st-skipped, .st-noattach { color: #888; }
+.st-downloading { color: #1a73e8; }
+button { font-size: 14px; }
+#s-save { padding: 8px 16px; margin-top: 8px; cursor: pointer; }
