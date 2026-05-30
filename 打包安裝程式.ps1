@@ -2,7 +2,12 @@ $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 $bundle = Join-Path $root 'dist-build\bundle'
 $iss = Join-Path $root 'installer\installer.iss'
-$iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
+$iscc = @(
+  "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",
+  'C:\Program Files (x86)\Inno Setup 6\ISCC.exe',
+  'C:\Program Files\Inno Setup 6\ISCC.exe'
+) | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $iscc) { throw 'ISCC.exe 找不到，請先安裝 Inno Setup（winget install JRSoftware.InnoSetup）' }
 $nodeVersion = 'v20.18.0'
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 
