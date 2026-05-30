@@ -5,3 +5,5 @@ downloads/
 *.log
 .playwright-mcp/
 runtime/
+dist-build/
+installer/ChineseTraditional.isl
