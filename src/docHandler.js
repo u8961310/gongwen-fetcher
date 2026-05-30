@@ -17,22 +17,33 @@ export async function openDoc(page, item) {
   await waitForFrame(page, S.doc.frameUrlIncludes, config.timeout);
 }
 
-// 下載目前開啟公文的所有附件到 destDir，回傳已存檔路徑陣列。
-export async function downloadAttachments(page, destDir) {
+// 收集目前開啟公文的附件清單，回傳 [{ encoded, filename }]。
+// 附件由 RPC（buildAttachmentList）非同步建立，等它長出來；真的沒附件則等短逾時後回空陣列。
+export async function collectAttachments(page) {
   const docFrame = await waitForFrame(page, S.doc.frameUrlIncludes, config.timeout);
+  await docFrame.waitForSelector('#attachments', { timeout: config.timeout }).catch(() => {});
+  await docFrame
+    .waitForFunction((sel) => document.querySelectorAll(sel).length > 0, S.doc.attachLinkSelector, {
+      timeout: 8000,
+    })
+    .catch(() => {});
 
-  // 取出每個附件 dlAttach 連結的 onclick 字串
   const onclicks = await docFrame.evaluate(
     (sel) => [...document.querySelectorAll(sel)].map((a) => a.getAttribute('onclick')),
     S.doc.attachLinkSelector
   );
 
-  const saved = [];
-  for (const onclick of onclicks) {
-    const m = onclick && onclick.match(/dlAttach\('([^']*)','([^']*)'\)/);
-    if (!m) continue;
-    const [, encoded, filename] = m;
+  return onclicks
+    .map((oc) => oc && oc.match(/dlAttach\('([^']*)','([^']*)'\)/))
+    .filter(Boolean)
+    .map((m) => ({ encoded: m[1], filename: m[2] }));
+}
 
+// 下載已收集的附件到 destDir，回傳已存檔路徑陣列；單檔逾時重試一次。
+export async function downloadAttachments(page, destDir, atts) {
+  const docFrame = await waitForFrame(page, S.doc.frameUrlIncludes, config.timeout);
+  const saved = [];
+  for (const { encoded, filename } of atts) {
     let download;
     try {
       [download] = await Promise.all([
@@ -40,22 +51,14 @@ export async function downloadAttachments(page, destDir) {
         docFrame.evaluate(({ e, f }) => window.dlAttach(e, f), { e: encoded, f: filename }),
       ]);
     } catch {
-      // 逾時重試一次
       [download] = await Promise.all([
         page.waitForEvent('download', { timeout: config.timeout }),
         docFrame.evaluate(({ e, f }) => window.dlAttach(e, f), { e: encoded, f: filename }),
       ]);
     }
-
     const dest = join(destDir, filename.replace(ILLEGAL, '_'));
     await download.saveAs(dest);
     saved.push(dest);
   }
   return saved;
-}
-
-// 目前開啟公文的附件數量（不下載）。
-export async function countAttachments(page) {
-  const docFrame = await waitForFrame(page, S.doc.frameUrlIncludes, config.timeout);
-  return docFrame.evaluate((sel) => document.querySelectorAll(sel).length, S.doc.attachLinkSelector);
 }

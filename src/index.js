@@ -4,7 +4,7 @@ import { chromium } from 'playwright';
 import { config } from './config.js';
 import { login } from './login.js';
 import { openInbox, scrapeInbox } from './listScraper.js';
-import { openDoc, downloadAttachments } from './docHandler.js';
+import { openDoc, collectAttachments, downloadAttachments } from './docHandler.js';
 import { buildFolderName, ensureFolder } from './fileManager.js';
 import { loadProcessed, saveProcessed, filterNew } from './stateStore.js';
 
@@ -43,10 +43,12 @@ async function main() {
 
       try {
         await openDoc(page, item);
-        const saved = await downloadAttachments(page, ensureFolder(config.outputDir, folderName).dir);
-        if (saved.length === 0) {
-          console.log(`ℹ️ ${folderName}：無附件`);
+        const atts = await collectAttachments(page);
+        if (atts.length === 0) {
+          console.log(`ℹ️ ${folderName}：無附件（不建資料夾）`);
         } else {
+          const { dir } = ensureFolder(config.outputDir, folderName);
+          const saved = await downloadAttachments(page, dir, atts);
           console.log(`✅ ${folderName}：下載 ${saved.length} 個附件`);
           done += 1;
         }
