@@ -1,6 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import { createInterface } from 'node:readline/promises';
-import { stdin, stdout } from 'node:process';
+import { stdin, stdout, argv } from 'node:process';
+import { pathToFileURL } from 'node:url';
 
 export function buildEnvContent({ baseUrl, account, password, outputDir }) {
   for (const [k, v] of Object.entries({ baseUrl, account, password, outputDir })) {
@@ -31,6 +32,7 @@ async function main() {
   console.log('⚠️ 提醒：密碼以純文字存在此電腦的 .env，請勿把此資料夾分享給他人。');
 }
 
-if (import.meta.url === `file://${process.argv[1].replace(/\\/g, '/')}`) {
+// 是否被直接執行（跨平台正確判斷，Windows 的 file:/// 三斜線也適用）
+if (argv[1] && import.meta.url === pathToFileURL(argv[1]).href) {
   main();
 }
