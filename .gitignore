@@ -4,3 +4,4 @@ processed.json
 downloads/
 *.log
 .playwright-mcp/
+runtime/
