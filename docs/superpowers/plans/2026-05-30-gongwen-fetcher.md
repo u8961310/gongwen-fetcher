@@ -537,6 +537,8 @@ async function main() {
     const newItems = filterNew(items, processed);
     console.log(`收件夾 ${items.length} 件，其中新件 ${newItems.length} 件`);
 
+    let done = 0;
+    let failed = 0;
     for (const item of newItems) {
       const meta = await openDoc(page, item);
       const folderName = buildFolderName(meta.docNumber, meta.subject);
@@ -558,14 +560,23 @@ async function main() {
         const saved = await downloadAttachments(page, dir);
         console.log(`✅ ${folderName}：下載 ${saved.length} 個附件`);
         processed.add(meta.docNumber);
+        done += 1;
       } catch (err) {
         console.error(`⚠️ ${folderName} 失敗，跳過（下次重試）：${err.message}`);
+        failed += 1;
       }
     }
 
-    if (!dryRun) saveProcessed(config.processedFile, processed);
+    if (!dryRun) {
+      saveProcessed(config.processedFile, processed);
+      console.log(`\n========================================`);
+      console.log(`完成：本次新下載 ${done} 件公文的附件` + (failed ? `，${failed} 件失敗（下次自動重試）` : ''));
+      console.log(`存放位置：${config.outputDir}`);
+      console.log(`========================================`);
+    }
   } catch (err) {
-    console.error(`❌ 中止：${err.message}`);
+    console.error(`\n❌ 執行中止：${err.message}`);
+    console.error(`常見原因：帳號密碼或網址錯誤、公文系統暫時無法連線。`);
     process.exitCode = 1;
   } finally {
     await browser.close();
@@ -589,54 +600,328 @@ git commit -m "feat: orchestrator 串接流程與 dry-run"
 
 ---
 
-## Task 10: 排程包裝（run.bat + 工作排程器）
+## Task 10: 設定精靈（src/setup.js，TDD）
+
+> 非技術同事不編輯文字檔。此精靈用命令列問答收集「網址/帳號/密碼/存放資料夾」，自動寫 `.env`。
+> 純函式 `buildEnvContent` 走 TDD；互動式問答是薄包裝。
 
 **Files:**
-- Create: `run.bat`
+- Create: `src/setup.js`
+- Test: `test/setup.test.js`
 
-- [ ] **Step 1: 寫 run.bat**
+- [ ] **Step 1: 寫失敗測試**
 
-```bat
-@echo off
-cd /d "%~dp0"
-node src\index.js >> run.log 2>&1
+```js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { buildEnvContent } from '../src/setup.js';
+
+test('buildEnvContent 產生正確 .env 文字', () => {
+  const out = buildEnvContent({
+    baseUrl: 'https://a.example/login',
+    account: 'user1',
+    password: 'pass1',
+    outputDir: 'D:\\公文',
+  });
+  assert.match(out, /^GW_BASE_URL=https:\/\/a\.example\/login$/m);
+  assert.match(out, /^GW_ACCOUNT=user1$/m);
+  assert.match(out, /^GW_PASSWORD=pass1$/m);
+  assert.match(out, /^GW_OUTPUT_DIR=D:\\公文$/m);
+});
+
+test('buildEnvContent 對缺值丟錯', () => {
+  assert.throws(() => buildEnvContent({ baseUrl: '', account: 'a', password: 'b', outputDir: 'c' }));
+});
 ```
 
-- [ ] **Step 2: 提供 Windows 工作排程器設定指令**
+- [ ] **Step 2: 跑測試確認失敗**
 
-在 `docs/selectors.md` 或 README 記下（每天 08:00 執行範例）：
+Run: `node --test test/setup.test.js`
+Expected: FAIL（`buildEnvContent` 未定義）
 
-```powershell
-schtasks /Create /TN "GongwenFetcher" /TR "D:\code\repos\gongwen-fetcher\run.bat" /SC DAILY /ST 08:00 /F
+- [ ] **Step 3: 寫實作**
+
+```js
+import { writeFileSync } from 'node:fs';
+import { createInterface } from 'node:readline/promises';
+import { stdin, stdout } from 'node:process';
+
+export function buildEnvContent({ baseUrl, account, password, outputDir }) {
+  for (const [k, v] of Object.entries({ baseUrl, account, password, outputDir })) {
+    if (!v) throw new Error(`設定值 ${k} 不可空白`);
+  }
+  return [
+    `GW_BASE_URL=${baseUrl}`,
+    `GW_ACCOUNT=${account}`,
+    `GW_PASSWORD=${password}`,
+    `GW_OUTPUT_DIR=${outputDir}`,
+    `GW_TIMEOUT=30000`,
+    `GW_PROCESSED_FILE=processed.json`,
+    '',
+  ].join('\n');
+}
+
+async function main() {
+  const rl = createInterface({ input: stdin, output: stdout });
+  console.log('===== 國尊公文附件下載器 首次設定 =====\n');
+  const baseUrl = (await rl.question('公文系統登入網址（例 https://校名.gov.tw/login）：')).trim();
+  const account = (await rl.question('你的公文系統帳號：')).trim();
+  const password = (await rl.question('你的公文系統密碼：')).trim();
+  const outputDir = (await rl.question('附件要存到哪個資料夾（例 D:\\公文附件）：')).trim();
+  rl.close();
+
+  writeFileSync('.env', buildEnvContent({ baseUrl, account, password, outputDir }), 'utf8');
+  console.log('\n✅ 設定完成，已寫入 .env。現在可以雙擊「執行.bat」開始下載。');
+  console.log('⚠️ 提醒：密碼以純文字存在此電腦的 .env，請勿把此資料夾分享給他人。');
+}
+
+// 直接執行才跑問答（被 import 測試時不觸發）
+if (import.meta.url === `file://${process.argv[1].replace(/\\/g, '/')}`) {
+  main();
+}
 ```
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: 跑測試確認通過**
+
+Run: `node --test test/setup.test.js`
+Expected: PASS（2 個測試全過）
+
+- [ ] **Step 5: Commit**
 
 ```bash
-git add run.bat
-git commit -m "feat: run.bat 與排程指令"
+git add src/setup.js test/setup.test.js
+git commit -m "feat: 首次設定精靈寫入 .env"
 ```
 
 ---
 
-## Task 11: 端對端驗證
+## Task 11: 一鍵安裝（安裝.ps1 + 安裝.bat）
+
+> 同事電腦無 Node。此腳本偵測無 Node 就下載可攜版 Node 到專案內 `runtime\`，再裝依賴與瀏覽器。
+> 採送達方式 B：需連外網。腳本要對「下載失敗 / 被防火牆擋」給清楚訊息。
+
+**Files:**
+- Create: `安裝.ps1`
+- Create: `安裝.bat`
+- Modify: `.gitignore`（加入 `runtime/`）
+
+- [ ] **Step 1: .gitignore 加 runtime/**
+
+在 `.gitignore` 末尾加一行：
+```
+runtime/
+```
+
+- [ ] **Step 2: 寫 安裝.ps1**
+
+```powershell
+$ErrorActionPreference = 'Stop'
+Set-Location -Path $PSScriptRoot
+
+$NodeVersion = 'v20.18.0'
+$NodeDir = Join-Path $PSScriptRoot 'runtime\node'
+$NodeExe = Join-Path $NodeDir 'node.exe'
+
+function Get-NodeCmd {
+  if (Test-Path $NodeExe) { return $NodeExe }
+  $sys = Get-Command node -ErrorAction SilentlyContinue
+  if ($sys) { return $sys.Source }
+  return $null
+}
+
+if (-not (Get-NodeCmd)) {
+  Write-Host '未偵測到 Node，正在下載可攜版 Node（約 30MB）…'
+  $zipUrl = "https://nodejs.org/dist/$NodeVersion/node-$NodeVersion-win-x64.zip"
+  $zipPath = Join-Path $env:TEMP 'node-portable.zip'
+  try {
+    Invoke-WebRequest -Uri $zipUrl -OutFile $zipPath -UseBasicParsing
+  } catch {
+    Write-Host '❌ 下載 Node 失敗，可能是網路或防火牆阻擋。請改用公司允許的網路，或聯絡資訊人員。' -ForegroundColor Red
+    Read-Host '按 Enter 結束'; exit 1
+  }
+  $extractTmp = Join-Path $env:TEMP 'node-portable-extract'
+  if (Test-Path $extractTmp) { Remove-Item $extractTmp -Recurse -Force }
+  Expand-Archive -Path $zipPath -DestinationPath $extractTmp -Force
+  $inner = Get-ChildItem $extractTmp -Directory | Select-Object -First 1
+  New-Item -ItemType Directory -Force -Path $NodeDir | Out-Null
+  Copy-Item -Path (Join-Path $inner.FullName '*') -Destination $NodeDir -Recurse -Force
+}
+
+$node = Get-NodeCmd
+$nodeBin = Split-Path $node -Parent
+$env:Path = "$nodeBin;$env:Path"
+$npm = Join-Path $nodeBin 'npm.cmd'
+
+Write-Host '正在安裝程式依賴…'
+& $npm ci
+Write-Host '正在下載瀏覽器（約 180MB，請稍候）…'
+& $npm exec -- playwright install chromium
+
+Write-Host ''
+Write-Host '✅ 安裝完成！接下來請雙擊「首次設定.bat」輸入帳號密碼與網址。' -ForegroundColor Green
+Read-Host '按 Enter 結束'
+```
+
+- [ ] **Step 3: 寫 安裝.bat**
+
+```bat
+@echo off
+chcp 65001 >nul
+cd /d "%~dp0"
+powershell -NoProfile -ExecutionPolicy Bypass -File "安裝.ps1"
+```
+
+- [ ] **Step 4: 語法驗證**
+
+Run: `powershell -NoProfile -Command "$null = [ScriptBlock]::Create((Get-Content -Raw '安裝.ps1')); 'PARSE_OK'"`
+Expected: 印出 `PARSE_OK`（僅驗證 PowerShell 語法，不實際執行下載）。
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add 安裝.ps1 安裝.bat .gitignore
+git commit -m "feat: 一鍵安裝腳本（可攜版 Node + 依賴 + 瀏覽器）"
+```
+
+---
+
+## Task 12: 傻瓜啟動器（首次設定 / 執行 / 排程 bat）
+
+> 全部用專案內 `runtime\node`（若存在）或系統 node。視窗執行完 `pause` 停住讓同事看結果。
+
+**Files:**
+- Create: `首次設定.bat`
+- Create: `執行.bat`
+- Create: `run.bat`（排程用，無視窗、寫 log）
+- Create: `設定每日自動.bat`
+
+- [ ] **Step 1: 共用 node 解析寫進每個 bat**
+
+每個互動 bat 開頭用此片段挑 node（專案內優先）：
+```bat
+@echo off
+chcp 65001 >nul
+cd /d "%~dp0"
+set "NODE=node"
+if exist "runtime\node\node.exe" set "NODE=runtime\node\node.exe"
+```
+
+- [ ] **Step 2: 寫 首次設定.bat**
+
+```bat
+@echo off
+chcp 65001 >nul
+cd /d "%~dp0"
+set "NODE=node"
+if exist "runtime\node\node.exe" set "NODE=runtime\node\node.exe"
+"%NODE%" src\setup.js
+pause
+```
+
+- [ ] **Step 3: 寫 執行.bat**
+
+```bat
+@echo off
+chcp 65001 >nul
+cd /d "%~dp0"
+if not exist ".env" (
+  echo 尚未設定，請先雙擊「首次設定.bat」輸入帳號密碼與網址。
+  pause
+  exit /b 1
+)
+set "NODE=node"
+if exist "runtime\node\node.exe" set "NODE=runtime\node\node.exe"
+"%NODE%" src\index.js
+echo.
+pause
+```
+
+- [ ] **Step 4: 寫 run.bat（排程用，無 pause、輸出寫 log）**
+
+```bat
+@echo off
+chcp 65001 >nul
+cd /d "%~dp0"
+set "NODE=node"
+if exist "runtime\node\node.exe" set "NODE=runtime\node\node.exe"
+"%NODE%" src\index.js >> run.log 2>&1
+```
+
+- [ ] **Step 5: 寫 設定每日自動.bat**
+
+```bat
+@echo off
+chcp 65001 >nul
+cd /d "%~dp0"
+schtasks /Create /TN "公文附件下載器" /TR "\"%~dp0run.bat\"" /SC DAILY /ST 08:00 /F
+if %errorlevel%==0 (
+  echo ✅ 已設定每天早上 08:00 自動下載。
+) else (
+  echo ❌ 設定排程失敗，請以系統管理員身分再試一次。
+)
+pause
+```
+
+- [ ] **Step 6: 語法檢查（bat 無內建 linter，逐一目視 + 確認檔案 UTF-8）**
+
+Run: `powershell -NoProfile -Command "Get-ChildItem *.bat | ForEach-Object { $_.Name }"`
+Expected: 列出四個 bat 檔。
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add 首次設定.bat 執行.bat run.bat 設定每日自動.bat
+git commit -m "feat: 傻瓜啟動器與排程 bat"
+```
+
+---
+
+## Task 13: 同事使用說明（README）
+
+**Files:**
+- Create: `README.md`
+
+- [ ] **Step 1: 寫 README.md**
+
+內容須包含（給非技術同事看的白話步驟）：
+1. 三步驟：① 雙擊「安裝.bat」→ ② 雙擊「首次設定.bat」填網址/帳號/密碼/存放位置 → ③ 雙擊「執行.bat」
+2. 想每天自動：雙擊「設定每日自動.bat」
+3. 常見問題：安裝.bat 下載失敗（網路/防火牆）、登入失敗（帳密或網址錯）、找不到附件（公文無附件）
+4. 安全提醒：密碼存在本機 .env，勿分享整個資料夾
+5. **給技術端的一段**：跨校時各校網址在「首次設定」輸入即可；若某校系統畫面與預設不同，需調整 `src/selectors.js`（附 selector 對照來源 `docs/selectors.md`）
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add README.md
+git commit -m "docs: 同事使用說明 README"
+```
+
+---
+
+## Task 14: 端對端驗證
 
 - [ ] **Step 1: 全測試**
 
 Run: `npm test`
-Expected: fileManager + stateStore 測試全過。
+Expected: fileManager + stateStore + setup 測試全過。
 
-- [ ] **Step 2: dry-run**
+- [ ] **Step 2: 設定精靈 → dry-run**
 
-Run: `npm run dry-run`
-Expected: 正確列出新件與資料夾名。
+手動跑 `node src/setup.js` 填入真實網址/帳密/輸出夾，再 `npm run dry-run`。
+Expected: 登入成功、列出新件與會建的資料夾名，不下載。
 
 - [ ] **Step 3: 真實跑一次**
 
-Run: `npm start`
-Expected: 收件夾新件附件下載到 `GW_OUTPUT_DIR` 下對應 `簽呈編號_主旨` 資料夾；`processed.json` 寫入已處理編號。
+Run: `執行.bat`（或 `npm start`）
+Expected: 收件夾新件附件下載到設定的資料夾下對應 `簽呈編號_主旨` 資料夾；視窗顯示完成摘要；`processed.json` 寫入。
 
 - [ ] **Step 4: 增量驗證**
 
-再跑 `npm start` 一次。
-Expected: 已處理件不重抓，輸出「新件 0 件」或只剩真正新增的。
+再跑一次。
+Expected: 已處理件不重抓，摘要顯示「新下載 0 件」或只剩真正新增。
+
+- [ ] **Step 5: 全新環境模擬（建議在另一台無 Node 的電腦或乾淨資料夾）**
+
+把專案（不含 node_modules / runtime / .env）複製到乾淨位置，依 README 三步驟走一遍。
+Expected：安裝→設定→執行皆可由非技術流程完成。若無第二台機器，至少模擬刪除 runtime/ 後重跑安裝.bat 成功。
