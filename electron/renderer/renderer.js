@@ -2,6 +2,18 @@ const $ = (id) => document.getElementById(id);
 const rows = new Map(); // docNumber -> <tr>
 let running = false;
 
+// 畫面層兜底：任何未捕捉錯誤直接顯示在畫面上（並轉進 run.log），不要再變成整片空白查不出原因
+function showFatal(err) {
+  const msg = (err && err.stack) || (err && err.message) || String(err);
+  try { window.api && window.api.log && window.api.log(msg); } catch { /* ignore */ }
+  const main = document.querySelector('.container') || document.body;
+  let box = $('fatal');
+  if (!box) { box = document.createElement('pre'); box.id = 'fatal'; box.style.cssText = 'margin:16px;padding:12px;background:#fee;color:#900;white-space:pre-wrap;border-radius:8px;'; main.prepend(box); }
+  box.textContent = `發生錯誤，請把這段截圖回報：\n${msg}`;
+}
+window.addEventListener('error', (e) => showFatal(e.error || e.message));
+window.addEventListener('unhandledrejection', (e) => showFatal(e.reason));
+
 function showSetup(values) {
   $('main').classList.add('hidden');
   $('setup').classList.remove('hidden');
@@ -89,7 +101,8 @@ $('t-sched').onchange = async (ev) => { await window.api.setSchedule(ev.target.c
 
 (async () => {
   const st = await window.api.getState();
-  $('t-sched').checked = await window.api.getSchedule();
+  // 先決定並顯示主畫面/設定畫面，再補排程狀態——排程查詢失敗也不該讓整個 UI 變空白
   if (st.configured) { showMain(); start(false); }
   else showSetup(await window.api.getSettings());
-})();
+  try { $('t-sched').checked = await window.api.getSchedule(); } catch { /* 排程狀態非關鍵 */ }
+})().catch(showFatal);

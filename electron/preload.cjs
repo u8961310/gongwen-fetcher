@@ -10,4 +10,5 @@ contextBridge.exposeInMainWorld('api', {
   getSchedule: () => ipcRenderer.invoke('get-schedule'),
   setSchedule: (on) => ipcRenderer.invoke('set-schedule', on),
   onProgress: (cb) => ipcRenderer.on('progress', (_e, data) => cb(data)),
+  log: (msg) => ipcRenderer.send('renderer-log', msg),
 });

@@ -45,6 +45,13 @@ function logEnvironment() {
 process.on('uncaughtException', (err) => log(`[uncaughtException] ${err.stack || err.message}`));
 process.on('unhandledRejection', (reason) => log(`[unhandledRejection] ${reason && reason.stack ? reason.stack : reason}`));
 
+// 呼叫 Windows 工作排程器（每小時自動下載開關用），成功 resolve(true) 失敗 resolve(false)
+function runTask(args) {
+  return new Promise((resolve) => {
+    execFile('schtasks', args, { windowsHide: true }, (err) => resolve(!err));
+  });
+}
+
 function recordProgress(e) {
   logEvent(e);
   if (e.type === 'item-done' && e.status === 'downloaded') {
@@ -75,8 +82,15 @@ function createWindow() {
     webPreferences: { preload: join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false },
   });
   win.removeMenu();
+  // 把畫面層的 console / 未捕捉錯誤 / 程序崩潰轉進 run.log，UI 整片空白時才查得出原因
+  win.webContents.on('console-message', (_e, level, message, line, sourceId) => {
+    if (level >= 2) log(`[renderer-console L${level}] ${message} (${sourceId}:${line})`);
+  });
+  win.webContents.on('render-process-gone', (_e, details) => log(`[render-process-gone] ${JSON.stringify(details)}`));
+  win.webContents.on('did-fail-load', (_e, code, desc, url) => log(`[did-fail-load] ${code} ${desc} ${url}`));
   win.loadFile(join(__dirname, 'renderer', 'index.html'));
 
+  ipcMain.on('renderer-log', (_e, msg) => log(`[renderer] ${msg}`));
   ipcMain.handle('get-state', () => ({ configured: hasSettings(USERDATA) }));
   ipcMain.handle('get-settings', () => {
     try { const c = loadConfig(USERDATA); return { baseUrl: c.baseUrl, account: c.account, password: c.password, outputDir: c.outputDir }; }
