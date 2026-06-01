@@ -14,12 +14,16 @@ const REAL = {
 
 export async function runDownload({ config, onProgress, dryRun = false, force = false }, deps = REAL) {
   const emit = (e) => { if (onProgress) onProgress(e); };
-  const processed = deps.loadProcessed(config.processedFile);
-  const browser = await deps.chromium.launch({ headless: true });
-  const page = await browser.newPage();
+  let browser;
   let downloaded = 0;
   let failed = 0;
   try {
+    const processed = deps.loadProcessed(config.processedFile);
+    // launch / newPage 放進 try：乾淨電腦上 Chromium 啟動失敗會走到 catch 並 emit error，
+    // 而不是丟到 try 外面被吞掉、UI 永遠卡在「登入中…」。
+    emit({ type: 'launch' });
+    browser = await deps.chromium.launch({ headless: true });
+    const page = await browser.newPage();
     await deps.login(page, config);
     emit({ type: 'login' });
 
@@ -63,8 +67,8 @@ export async function runDownload({ config, onProgress, dryRun = false, force = 
     if (!dryRun) deps.saveProcessed(config.processedFile, processed);
     emit({ type: 'done', downloaded, failed, outputDir: config.outputDir });
   } catch (err) {
-    emit({ type: 'error', message: err.message });
+    emit({ type: 'error', message: err.message, stack: err.stack });
   } finally {
-    await browser.close();
+    if (browser) await browser.close();
   }
 }
