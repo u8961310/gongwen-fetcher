@@ -18,6 +18,12 @@ export const selectors = {
     frameUrlIncludes: 'workflow/folder_tree.htm',
   },
 
+  // 上方應用分頁列：登入後常停在入口頁(portal)，需點「電子簽核」分頁才會載入公文模組。
+  // 分頁是 <td class="ap_TD"> 文字「電子簽核」，onclick 動態綁定，故以「文字精確相符 + 真實點擊」觸發。
+  nav: {
+    signModuleText: '電子簽核',
+  },
+
   // 左側資料夾樹
   tree: {
     frameUrlIncludes: 'workflow/folder_tree.htm',

@@ -26,6 +26,18 @@ Playwright 的 `page.frames()` 會攤平所有層的 frame，不必手動逐層�
 - 送出：表單 action 是 `javascript:void login()`；填完呼叫頁面全域函式 `login()`
 - 登入成功判斷：出現 URL 含 `workflow/folder_tree.htm` 的 frame（公文模組載入）
 
+### 一之二、登入後進入「電子簽核」模組（2026-06-01 補）
+
+- **重要**：登入後預設停在**入口頁(portal)**或上次使用的應用，公文模組 `workflow/folder_tree.htm`
+  **不一定自動載入**。需先點上方應用分頁列的「電子簽核」。
+  （2026-05-30 探勘當下帳號剛好停在公文模組才沒踩到；不能假設會自動進。）
+- 應用分頁列在 frame URL 含 `<module>/top.htm`（如 `webhd/top.htm`），分頁是
+  `<td class="ap_TD">`，文字分別「電子簽核 / 公文系統 / 公文檔管」。收件夾在「電子簽核」。
+- onclick **動態綁定**（dump 出來是空字串），故用「跨 frame 找文字精確等於『電子簽核』的元素 + 真實 `.click()`」觸發，
+  不要用文字 includes（portal 有「電子簽核通知：…」會誤中）。
+- 實測：點擊前無 folder_tree → 點「電子簽核」→ folder_tree 出現且 `folder_0_@inbox` 存在。
+- 程式作法見 `src/login.js` 的 `enterSignModule()` / `clickNavTab()`。
+
 ## 二、進收件夾
 
 - 資料夾樹 frame：URL 含 `workflow/folder_tree.htm`
