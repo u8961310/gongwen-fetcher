@@ -9,3 +9,6 @@ dist-build/
 installer/ChineseTraditional.isl
 ms-playwright/
 dist/
+
+# 打包給同事的發佈包
+*.zip
